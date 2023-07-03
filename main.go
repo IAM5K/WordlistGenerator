@@ -21,28 +21,24 @@ func getInputsFromUser() []string {
 	return inputs
 }
 
-func generateWordCombinations(words []string) []string {
-	var combinations []string
-
-	// Generate permutations and combinations of words
-	generatePermutations(words, len(words), &combinations)
-
-	return combinations
+func generateWordCombinations(words []string, outputFile *os.File) {
+	generatePermutations(words, len(words), outputFile)
 }
 
-func generatePermutations(words []string, n int, combinations *[]string) {
+func generatePermutations(words []string, n int, outputFile *os.File) {
 	if n == 1 {
-		*combinations = append(*combinations, strings.Join(words, ""))
+		combination := strings.Join(words, "")
+		fmt.Fprintln(outputFile, combination) // Write the combination to the output file
 	} else {
 		for i := 0; i < n-1; i++ {
-			generatePermutations(words, n-1, combinations)
+			generatePermutations(words, n-1, outputFile)
 			if n%2 == 0 {
 				words[i], words[n-1] = words[n-1], words[i]
 			} else {
 				words[0], words[n-1] = words[n-1], words[0]
 			}
 		}
-		generatePermutations(words, n-1, combinations)
+		generatePermutations(words, n-1, outputFile)
 	}
 }
 
@@ -57,6 +53,57 @@ func calculateCombinationsCount(words []string) int {
 
 	return factorial
 }
+func estimateFileSize(totalCombinations int, words []string) int64 {
+	averageCharSize := 1 // Adjust this value based on your average character size
+
+	totalSize := int64(0)
+
+	for _, word := range words {
+		wordSize := int64(len(word) * averageCharSize)
+		totalSize += wordSize
+	}
+
+	totalSize *= int64(totalCombinations)
+
+	return totalSize
+}
+
+func askConfirmation() bool {
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		fmt.Print("Please confirm that you have sufficient space on disk and want to generarte wordlist. 'yes' or 'no': ")
+		input, _ := reader.ReadString('\n')
+		input = strings.ToLower(strings.TrimSpace(input))
+
+		switch input {
+		case "y":
+			return true
+		case "n":
+			return false
+		case "yes":
+			return true
+		case "no":
+			return false
+		default:
+			fmt.Println("Invalid input. Please try again.")
+		}
+	}
+}
+
+func getInputFilenameWithExtension() string {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enter a filename: ")
+	input, _ := reader.ReadString('\n')
+	filename := strings.TrimSpace(input)
+
+	if !strings.HasSuffix(filename, ".txt") {
+		filename += ".txt"
+	}
+
+	return filename
+}
 
 func main() {
 	// Get inputs from the user
@@ -70,13 +117,28 @@ func main() {
 	// Calculate the number of combinations
 	count := calculateCombinationsCount(inputs)
 
+	// Calculate the estimated file size
+	size := estimateFileSize(count, inputs)
 	fmt.Println("Total number of combinations:", count)
-	// fmt.Printf("Estimated size consumed by text file: %d bytes\n", size)
-	// Generate word combinations
-	combinations := generateWordCombinations(inputs)
+	fmt.Printf("Estimated size consumed by text file: %d bytes\n", size)
 
-	// Print the combinations
-	for _, combination := range combinations {
-		fmt.Println(combination)
+	confirmed := askConfirmation()
+	filename := getInputFilenameWithExtension()
+
+	if confirmed {
+		fmt.Println("You confirmed with 'yes'.")
+		// Open the output file
+		file, err := os.Create("combinations.txt")
+		if err != nil {
+			fmt.Println("Error creating output file:", err)
+			return
+		}
+		defer file.Close()
+		// Generate and store combinations directly to the output file
+		generateWordCombinations(inputs, file)
+		fmt.Println("Output filename:", filename)
+	} else {
+		fmt.Println("Process Canceled")
 	}
+
 }
