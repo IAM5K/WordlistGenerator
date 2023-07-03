@@ -3,136 +3,80 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"math"
 	"os"
-	"strconv"
 	"strings"
 )
 
-func jumbleInputs(inputs []string) []string {
-	var jumbledInputs []string
-
-	// Jumble each input by permuting characters
-	for _, input := range inputs {
-		// Convert input to rune slice for character-level manipulation
-		inputRunes := []rune(input)
-
-		// Permute the input by swapping characters
-		permute(inputRunes, 0, len(input)-1)
-
-		// Append the jumbled input to the result array if its length is 8
-		if len(inputRunes) == 8 {
-			jumbledInputs = append(jumbledInputs, string(inputRunes))
-		}
-	}
-
-	return jumbledInputs
-}
-
-func permute(input []rune, l, r int) {
-	if l == r {
-		return
-	}
-
-	for i := l; i <= r; i++ {
-		input[l], input[i] = input[i], input[l]
-		permute(input, l+1, r)
-		input[l], input[i] = input[i], input[l]
-	}
-}
-
-func calculateFileSize(possibilities int64) string {
-	units := []string{"B", "KB", "MB", "GB", "TB"}
-	base := 1024.0
-
-	if possibilities == 0 {
-		return "0 B"
-	}
-
-	exponent := math.Floor(math.Log(float64(possibilities)) / math.Log(base))
-	size := float64(possibilities) / math.Pow(base, exponent)
-
-	sizeStr := strconv.FormatFloat(size, 'f', 2, 64)
-	unit := units[int(exponent)]
-
-	return sizeStr + " " + unit
-}
-
-func getInputInputsFromUser() []string {
+func getInputsFromUser() []string {
 	reader := bufio.NewReader(os.Stdin)
-
-	// Prompt the user to enter inputs separated by commas
-	fmt.Println("Enter the inputs separated by commas:")
+	// Prompt the user to enter inputs
+	fmt.Println("Enter the inputs (words, numbers, or special characters).\nYou can separate them with comma or space :")
 	inputStr, _ := reader.ReadString('\n')
-
-	// Remove trailing newline character and split the input by commas
+	// Remove trailing newline character and split the input by space or comma
 	inputStr = strings.TrimSpace(inputStr)
-	inputs := strings.Split(inputStr, ",")
+	inputs := strings.FieldsFunc(inputStr, func(r rune) bool {
+		return r == ' ' || r == ','
+	})
 
 	return inputs
 }
 
-func getOutputFileNameFromUser() string {
-	reader := bufio.NewReader(os.Stdin)
+func generateWordCombinations(words []string) []string {
+	var combinations []string
 
-	// Prompt the user to enter the output file name
-	fmt.Println("Enter the output file name:")
-	fileName, _ := reader.ReadString('\n')
+	// Generate permutations and combinations of words
+	generatePermutations(words, len(words), &combinations)
 
-	// Remove trailing newline character
-	fileName = strings.TrimSpace(fileName)
-
-	return fileName
+	return combinations
 }
 
-func generateWordList(inputs []string, fileName string) {
-	// Jumble the inputs with a maximum length of 8 characters
-	jumbledInputs := jumbleInputs(inputs)
-
-	// Calculate the total number of possibilities
-	totalPossibilities := int64(len(jumbledInputs))
-
-	// Calculate the estimated size of the resulting file
-	estimatedFileSize := calculateFileSize(totalPossibilities * 8) // Assuming 8 bytes per word
-
-	// Ask the user for confirmation
-	fmt.Printf("This will generate a word list with %d possibilities and an estimated file size of %s.\n", totalPossibilities, estimatedFileSize)
-	fmt.Print("Do you want to proceed? (y/n): ")
-	confirmation, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-
-	// Process the user's confirmation
-	confirmation = strings.TrimSpace(strings.ToLower(confirmation))
-	if confirmation != "y" && confirmation != "yes" {
-		fmt.Println("Operation aborted.")
-		return
-	}
-
-	// Create and open the output file
-	file, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println("Error opening the output file:", err)
-		return
-	}
-	defer file.Close()
-
-	// Append the jumbled inputs to the output file
-	for _, input := range jumbledInputs {
-		if _, err := file.WriteString(input + "\n"); err != nil {
-			fmt.Println("Error writing to the output file:", err)
-			return
+func generatePermutations(words []string, n int, combinations *[]string) {
+	if n == 1 {
+		*combinations = append(*combinations, strings.Join(words, ""))
+	} else {
+		for i := 0; i < n-1; i++ {
+			generatePermutations(words, n-1, combinations)
+			if n%2 == 0 {
+				words[i], words[n-1] = words[n-1], words[i]
+			} else {
+				words[0], words[n-1] = words[n-1], words[0]
+			}
 		}
+		generatePermutations(words, n-1, combinations)
+	}
+}
+
+func calculateCombinationsCount(words []string) int {
+	n := len(words)
+
+	// Calculate the factorial of n
+	factorial := 1
+	for i := 1; i <= n; i++ {
+		factorial *= i
 	}
 
-	fmt.Println("Word list generation complete. Check", fileName, "for the results.")
+	return factorial
 }
 
 func main() {
 	// Get inputs from the user
-	inputs := getInputInputsFromUser()
+	inputs := getInputsFromUser()
 
-	// Get the output file name from the user
-	fileName := getOutputFileNameFromUser()
+	// Print each input object in a separate line
+	for _, input := range inputs {
+		fmt.Println(input)
+	}
+	// Predict size and count
+	// Calculate the number of combinations
+	count := calculateCombinationsCount(inputs)
 
-	// Generate the word list
-	generateWordList(inputs, fileName)
+	fmt.Println("Total number of combinations:", count)
+	// fmt.Printf("Estimated size consumed by text file: %d bytes\n", size)
+	// Generate word combinations
+	combinations := generateWordCombinations(inputs)
+
+	// Print the combinations
+	for _, combination := range combinations {
+		fmt.Println(combination)
+	}
 }
